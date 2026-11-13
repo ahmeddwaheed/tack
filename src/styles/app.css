@@ -567,6 +567,22 @@ code {
   border-radius: var(--radius-medium);
 }
 
+.tack-editor .milkdown .milkdown-code-block,
+.tack-editor .milkdown .milkdown-code-block .cm-editor {
+  background: var(--color-bg-code);
+  color: var(--color-text);
+}
+
+.tack-editor .milkdown .milkdown-code-block .cm-gutters {
+  background: var(--color-bg-code);
+  color: var(--color-text-faint);
+}
+
+.tack-editor .milkdown .milkdown-code-block .cm-activeLine,
+.tack-editor .milkdown .milkdown-code-block .cm-activeLineGutter {
+  background: transparent;
+}
+
 .tack-editor .milkdown .milkdown-code-block .tools .tools-button-group button,
 .tack-editor .milkdown .milkdown-code-block .tools .language-button {
   background: var(--color-bg-control);
