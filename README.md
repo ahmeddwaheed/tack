@@ -2,6 +2,31 @@
 
 A small macOS app for Markdown notes. Tack edits the notes of an Obsidian vault named "Tack" in iCloud, so the same notes are on the iPhone through Obsidian.
 
+## Features
+
+![Main window](docs/screenshots/main-light.png)
+Folders on the left, notes in the middle, the editor on the right.
+
+![Main window in dark mode](docs/screenshots/main-dark.png)
+Tack follows the macOS dark mode.
+
+![Search](docs/screenshots/search.png)
+Press `⌘K` to search all notes. Typos are fine, and you see the line that matched.
+
+![Link picker](docs/screenshots/link-picker.png)
+Type `[[` to link to another note.
+
+![Grammar check](docs/screenshots/grammar.png)
+Grammar mistakes get a wavy line. Click one to see a fix.
+
+![Quick capture](docs/screenshots/quick-capture.png)
+Press `⌥Space` in any app to write a quick note. `Esc` saves it to the Inbox.
+
+![Conflict](docs/screenshots/conflict.png)
+If a note changed on another device while you typed, you choose which version to keep.
+
+Screenshots are generated with `pnpm screenshots`.
+
 ## Development
 
 ```sh

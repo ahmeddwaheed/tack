@@ -1,0 +1,23 @@
+html[data-scene="capture"] body {
+  background:
+    radial-gradient(circle at 20% 25%, #f9c5d1 0, transparent 45%),
+    radial-gradient(circle at 80% 30%, #a7c7ff 0, transparent 50%),
+    radial-gradient(circle at 50% 90%, #b8f0d8 0, transparent 55%),
+    #e9e6f5;
+}
+
+.demo-desktop {
+  display: grid;
+  place-items: center;
+  height: 100%;
+}
+
+.demo-panel {
+  width: 560px;
+  height: 220px;
+  overflow: hidden;
+  border-radius: var(--radius-panel);
+  background: color-mix(in srgb, var(--color-bg) 88%, transparent);
+  backdrop-filter: blur(24px);
+  box-shadow: var(--shadow-panel);
+}
