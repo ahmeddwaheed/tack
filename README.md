@@ -40,10 +40,11 @@ Tests: `pnpm test` and `cargo test --manifest-path src-tauri/Cargo.toml`.
 
 A stable certificate keeps the macOS microphone and hotkey permissions after every rebuild. Create it once:
 
-1. Open Keychain Access.
-2. Menu: Keychain Access > Certificate Assistant > Create a Certificate.
-3. Name: `Tack Local Signing`. Identity Type: "Self Signed Root". Certificate Type: "Code Signing".
-4. Create it in the login keychain.
+```sh
+scripts/create-signing-cert.sh
+```
+
+The script creates a self-signed code-signing certificate named `Tack Local Signing` in your login keychain. macOS asks for your login password one time to trust it for code signing.
 
 Check that it exists:
 
