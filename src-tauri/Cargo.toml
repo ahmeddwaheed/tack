@@ -1,0 +1,36 @@
+[package]
+name = "tack"
+version = "0.1.0"
+description = "A calm Markdown notes app for an Obsidian vault in iCloud"
+authors = ["Ahmed Waheed"]
+edition = "2024"
+
+[lib]
+name = "tack_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "=2.7.4", features = [] }
+
+[dependencies]
+tauri = { version = "=2.12.5", features = [] }
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.154"
+trash = "=5.3.0"
+notify = "=8.2.2"
+tauri-plugin-dialog = "=2.8.4"
+tauri-plugin-global-shortcut = "=2.4.1"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "=0.6.5"
+objc2-app-kit = { version = "=0.3.2", default-features = false, features = ["std", "NSPanel", "NSResponder", "NSWindow"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true
+
+[dev-dependencies]
+tempfile = "=3.27.0"

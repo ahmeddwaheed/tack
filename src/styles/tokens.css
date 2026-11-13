@@ -1,0 +1,112 @@
+:root {
+  color-scheme: light dark;
+
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --font-size-label: 11px;
+  --font-size-small: 12px;
+  --font-size-sidebar: 13px;
+  --font-size-body: 14px;
+  --font-size-editor: 15px;
+  --font-size-input: 17px;
+  --font-size-title: 26px;
+  --line-height-editor: 1.65;
+  --line-height-input: 1.45;
+  --letter-spacing-title: -0.01em;
+  --letter-spacing-label: 0.06em;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --opacity-label: 0.5;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-half: 2px;
+
+  --radius-small: 6px;
+  --radius-medium: 8px;
+  --radius-panel: 14px;
+  --radius-pill: 99px;
+
+  --border-width: 1px;
+  --border-width-accent: 3px;
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 1px;
+  --underline-offset: 3px;
+
+  --sidebar-width: 188px;
+  --list-width: 248px;
+  --setup-width: 520px;
+  --dialog-width: 360px;
+  --palette-width: 620px;
+  --popover-max-width: 320px;
+  --picker-min-width: 200px;
+  --picker-max-width: 360px;
+  --palette-top: 12vh;
+  --palette-max-height: 70vh;
+  --viewport-gutter: var(--space-6);
+
+  --color-text: #1d1d1f;
+  --color-text-muted: #5f5f66;
+  --color-text-faint: #63636b;
+  --color-bg: #ffffff;
+  --color-bg-chrome: #fafafa;
+  --color-bg-sidebar: #f7f7f8;
+  --color-bg-list: #ffffff;
+  --color-bg-raised: #ffffff;
+  --color-bg-code: #f5f5f7;
+  --color-bg-control: #e5e5ea;
+  --color-border: #ececec;
+  --color-border-control: #d8d8de;
+  --color-hover: rgba(0, 0, 0, 0.04);
+  --color-active: #e8e8ec;
+  --color-selected: #f1f3ff;
+  --color-accent: #3b4bdb;
+  --color-accent-soft: #5b6cf0;
+  --color-on-accent: #ffffff;
+  --color-danger: #c62828;
+  --color-on-danger: #ffffff;
+  --color-grammar: #e11d48;
+  --color-error: #ba1a1a;
+  --color-warning-bg: #fff4d6;
+  --color-warning-text: #4a3800;
+  --color-backdrop: rgba(0, 0, 0, 0.18);
+  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(0, 0, 0, 0.08);
+  --shadow-panel: 0 18px 40px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-text: #ececee;
+    --color-text-muted: #a4a4ac;
+    --color-text-faint: #a0a0aa;
+    --color-bg: #1b1b1e;
+    --color-bg-chrome: #202023;
+    --color-bg-sidebar: #222226;
+    --color-bg-list: #1b1b1e;
+    --color-bg-raised: #28282c;
+    --color-bg-code: #25252a;
+    --color-bg-control: #38383e;
+    --color-border: #323237;
+    --color-border-control: #45454c;
+    --color-hover: rgba(255, 255, 255, 0.06);
+    --color-active: #34343b;
+    --color-selected: #262a47;
+    --color-accent: #8b9bff;
+    --color-accent-soft: #8b9bff;
+    --color-on-accent: #0f1226;
+    --color-danger: #ef5350;
+    --color-on-danger: #1a0000;
+    --color-grammar: #fb7185;
+    --color-error: #ff8a80;
+    --color-warning-bg: #3d3214;
+    --color-warning-text: #f5e3a8;
+    --color-backdrop: rgba(0, 0, 0, 0.5);
+    --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    --shadow-panel: 0 18px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
+}
