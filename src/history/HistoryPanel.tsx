@@ -94,6 +94,7 @@ export function HistoryPanel({ note, editor, onClose }: HistoryPanelProps) {
     setRestoring(true);
     const usable = () => noteRef.current === session && session.state === "ready";
     try {
+      editorRef.current.currentBody();
       await saveSnapshot(session.path, session.fileContent(), "Before restore");
       if (noteRef.current !== session) return;
       if (!usable()) return setRestoring(false);
@@ -168,6 +169,7 @@ export function HistoryPanel({ note, editor, onClose }: HistoryPanelProps) {
               Restore this version
             </button>
           </div>
+          <p className="tack-claude-hint">Restores the note text. Properties (frontmatter) stay as they are now.</p>
         </>
       )}
     </aside>

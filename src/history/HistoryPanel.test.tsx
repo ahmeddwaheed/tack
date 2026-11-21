@@ -185,6 +185,30 @@ describe("HistoryPanel", () => {
     expect(editor.replaceBody).toHaveBeenCalledWith(OLD_BODY);
   });
 
+  test("restore syncs the editor before it snapshots the file", async () => {
+    await render();
+    await select(1);
+    editor.currentBody.mockImplementation(() => {
+      note.body = `${BODY}last keystrokes\n`;
+      return note.body;
+    });
+    await act(async () => button("Restore this version").click());
+    await settle();
+    expect(mocks.saveSnapshot).toHaveBeenCalledWith(
+      "Inbox/Plan.md",
+      `${FRONTMATTER}${BODY}last keystrokes\n`,
+      "Before restore",
+    );
+  });
+
+  test("says that restore keeps the current properties", async () => {
+    await render();
+    await select(1);
+    expect(container.textContent).toContain(
+      "Restores the note text. Properties (frontmatter) stay as they are now.",
+    );
+  });
+
   test("the list reloads after a restore", async () => {
     await render();
     await select(1);

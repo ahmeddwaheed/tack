@@ -189,7 +189,7 @@ impl History {
             fs::rename(source.join(format!("{id}.md")), target.join(format!("{new_id}.md")))
                 .map_err(|e| e.to_string())?;
         }
-        let _ = fs::remove_dir_all(&source);
+        let _ = fs::remove_dir(&source);
         Self::prune(&target);
         Ok(())
     }
@@ -297,6 +297,29 @@ mod tests {
         h.save("Notes/b.md", "two", "r").unwrap();
         move_history(d.path(), v.path(), "Inbox/a.md", "Notes/b.md").unwrap();
         assert_eq!(h.list("Notes/b.md").unwrap().len(), 2);
+    }
+
+    #[test]
+    fn merge_keeps_the_source_dir_when_a_stray_file_is_left() {
+        let (d, v, h) = store();
+        h.save("Inbox/a.md", "one", "r").unwrap();
+        h.save("Notes/b.md", "two", "r").unwrap();
+        let source = h.note_dir("Inbox/a.md").unwrap();
+        let stray = source.join("keep-me.txt");
+        fs::write(&stray, "precious").unwrap();
+        move_history(d.path(), v.path(), "Inbox/a.md", "Notes/b.md").unwrap();
+        assert_eq!(fs::read_to_string(&stray).unwrap(), "precious");
+        assert_eq!(h.list("Notes/b.md").unwrap().len(), 2);
+    }
+
+    #[test]
+    fn merge_removes_the_empty_source_dir() {
+        let (d, v, h) = store();
+        h.save("Inbox/a.md", "one", "r").unwrap();
+        h.save("Notes/b.md", "two", "r").unwrap();
+        let source = h.note_dir("Inbox/a.md").unwrap();
+        move_history(d.path(), v.path(), "Inbox/a.md", "Notes/b.md").unwrap();
+        assert!(!source.exists());
     }
 
     #[test]
