@@ -29,7 +29,27 @@ pub struct History {
     vault: Vault,
 }
 
+const MAX_KEY_BYTES: usize = 200;
+const HASHED_KEY_PREFIX: usize = 120;
+
+fn fnv1a(bytes: &[u8]) -> u64 {
+    bytes.iter().fold(0xcbf29ce484222325, |hash, byte| (hash ^ u64::from(*byte)).wrapping_mul(0x100000001b3))
+}
+
 fn encode_key(rel: &str) -> String {
+    let encoded = percent_encode(rel);
+    if encoded.len() <= MAX_KEY_BYTES {
+        return encoded;
+    }
+    let mut cut = HASHED_KEY_PREFIX;
+    while !encoded.is_char_boundary(cut) {
+        cut -= 1;
+    }
+    let cut = encoded[..cut].rfind('%').filter(|at| *at + 3 > cut).unwrap_or(cut);
+    format!("{}~{:016x}", &encoded[..cut], fnv1a(rel.as_bytes()))
+}
+
+fn percent_encode(rel: &str) -> String {
     let mut out = String::new();
     for byte in rel.bytes() {
         if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b'~') {
@@ -113,12 +133,24 @@ impl History {
         let meta = serde_json::to_vec(&Meta { reason: reason.to_string() }).map_err(|e| e.to_string())?;
         write_atomic(&dir.join(format!("{id}.json")), &meta)?;
         write_atomic(&dir.join(format!("{id}.md")), content.as_bytes())?;
-        let all = Self::ids(&dir);
+        Self::prune(&dir);
+        Self::entry(&dir, &id).ok_or_else(|| "snapshot was not written".to_string())
+    }
+
+    fn prune(dir: &Path) {
+        let all = Self::ids(dir);
         for stale in all.iter().take(all.len().saturating_sub(KEEP)) {
             let _ = fs::remove_file(dir.join(format!("{stale}.md")));
             let _ = fs::remove_file(dir.join(format!("{stale}.json")));
         }
-        Self::entry(&dir, &id).ok_or_else(|| "snapshot was not written".to_string())
+    }
+
+    fn free_id(dir: &Path, id: &str) -> Result<String, String> {
+        let (ms, _) = parse_id(id).ok_or_else(|| format!("invalid snapshot id: {id}"))?;
+        (0..=9999)
+            .map(|counter| format!("{ms:0width$}-{counter:04}", width = MS_DIGITS))
+            .find(|candidate| !dir.join(format!("{candidate}.md")).exists())
+            .ok_or_else(|| "no free snapshot id".to_string())
     }
 
     pub fn list(&self, rel: &str) -> Result<Vec<HistoryEntry>, String> {
@@ -144,10 +176,21 @@ impl History {
         if !target.exists() {
             return fs::rename(&source, &target).map_err(|e| e.to_string());
         }
-        for entry in fs::read_dir(&source).map_err(|e| e.to_string())?.filter_map(|e| e.ok()) {
-            fs::rename(entry.path(), target.join(entry.file_name())).map_err(|e| e.to_string())?;
+        for id in Self::ids(&source) {
+            let new_id = if target.join(format!("{id}.md")).exists() {
+                Self::free_id(&target, &id)?
+            } else {
+                id.clone()
+            };
+            let meta = source.join(format!("{id}.json"));
+            if meta.exists() {
+                fs::rename(&meta, target.join(format!("{new_id}.json"))).map_err(|e| e.to_string())?;
+            }
+            fs::rename(source.join(format!("{id}.md")), target.join(format!("{new_id}.md")))
+                .map_err(|e| e.to_string())?;
         }
-        let _ = fs::remove_dir(&source);
+        let _ = fs::remove_dir_all(&source);
+        Self::prune(&target);
         Ok(())
     }
 }
@@ -272,5 +315,59 @@ mod tests {
         h.save("Inbox/a.md", "x", "r").unwrap();
         assert!(h.read("Inbox/a.md", "0000000000000001-0000").is_err());
         assert!(h.read("Inbox/a.md", "../../etc/passwd").is_err());
+    }
+
+    fn plant(dir: &Path, key: &str, id: &str, content: &str, reason: &str) {
+        let note_dir = dir.join("history").join(encode_key(key));
+        fs::create_dir_all(&note_dir).unwrap();
+        fs::write(note_dir.join(format!("{id}.md")), content).unwrap();
+        fs::write(note_dir.join(format!("{id}.json")), format!("{{\"reason\":\"{reason}\"}}")).unwrap();
+    }
+
+    #[test]
+    fn merge_keeps_both_snapshots_with_colliding_ids() {
+        let (d, v, h) = store();
+        let id = "0000000000000001-0000";
+        plant(d.path(), "Inbox/a.md", id, "from a", "reason a");
+        plant(d.path(), "Notes/b.md", id, "from b", "reason b");
+        move_history(d.path(), v.path(), "Inbox/a.md", "Notes/b.md").unwrap();
+        let list = h.list("Notes/b.md").unwrap();
+        assert_eq!(list.len(), 2);
+        let mut pairs: Vec<(String, String)> = list
+            .iter()
+            .map(|e| (h.read("Notes/b.md", &e.id).unwrap(), e.reason.clone()))
+            .collect();
+        pairs.sort();
+        assert_eq!(
+            pairs,
+            vec![
+                ("from a".to_string(), "reason a".to_string()),
+                ("from b".to_string(), "reason b".to_string())
+            ]
+        );
+    }
+
+    #[test]
+    fn merge_prunes_to_newest_50() {
+        let (d, v, h) = store();
+        for _ in 0..30 {
+            h.save("Inbox/a.md", "a", "r").unwrap();
+            h.save("Notes/b.md", "b", "r").unwrap();
+        }
+        move_history(d.path(), v.path(), "Inbox/a.md", "Notes/b.md").unwrap();
+        assert_eq!(h.list("Notes/b.md").unwrap().len(), 50);
+    }
+
+    #[test]
+    fn long_non_ascii_path_still_has_history() {
+        let (_d, _v, h) = store();
+        let long = format!("Inbox/{}.md", "é".repeat(300));
+        let other = format!("Inbox/{}x.md", "é".repeat(300));
+        assert!(encode_key(&long).len() <= MAX_KEY_BYTES + 20);
+        assert_ne!(encode_key(&long), encode_key(&other));
+        let e = h.save(&long, "body", "r").unwrap();
+        assert_eq!(h.read(&long, &e.id).unwrap(), "body");
+        assert_eq!(h.list(&long).unwrap().len(), 1);
+        assert!(h.list(&other).unwrap().is_empty());
     }
 }
