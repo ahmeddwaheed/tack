@@ -68,7 +68,7 @@ export async function mountNoteEditor(
     },
     currentBody() {
       sync();
-      return touched ? lead + crepe.getMarkdown() : session.body;
+      return session.body;
     },
     setGrammarEnabled(enabled) {
       if (!destroyed && grammar) setGrammarEnabled(crepe.editor.ctx.get(editorViewCtx), enabled);

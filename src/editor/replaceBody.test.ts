@@ -87,6 +87,30 @@ describe("NoteEditor.replaceBody", () => {
     await session.close();
   });
 
+  test("callouts in the new body round-trip unescaped", async () => {
+    const { session, editor } = await open();
+    const next = "> [!note] Title\n> Body of the note callout.\n";
+    editor.replaceBody(next);
+    expect(session.body).toBe(next);
+    await editor.destroy();
+    await session.close();
+  });
+
+  test("currentBody follows the session after a disk reload and after destroy", async () => {
+    const { session, editor } = await open();
+    const view = viewOf(editor);
+    view.dispatch(view.state.tr.insertText(" typed", Selection.atEnd(view.state.doc).from));
+    editor.sync();
+    await session.flush();
+    expect(session.dirty).toBe(false);
+    session.onDiskChange(`${FRONTMATTER}# Theirs\n\nFrom the phone.\n`);
+    expect(session.body).toBe("# Theirs\n\nFrom the phone.\n");
+    expect(editor.currentBody()).toBe("# Theirs\n\nFrom the phone.\n");
+    await editor.destroy();
+    expect(editor.currentBody()).toBe("# Theirs\n\nFrom the phone.\n");
+    await session.close();
+  });
+
   test("currentBody flushes a pending edit and returns the body the session would write", async () => {
     const { session, editor } = await open();
     expect(editor.currentBody()).toBe(session.body);
