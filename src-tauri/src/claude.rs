@@ -10,13 +10,15 @@ use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::oneshot;
 
-const ARGS: [&str; 8] = [
+const ARGS: [&str; 10] = [
     "-p",
     "--safe-mode",
     "--output-format",
     "stream-json",
     "--verbose",
     "--no-session-persistence",
+    "--tools",
+    "",
     "--disallowedTools",
     "Bash,Edit,Write,MultiEdit,NotebookEdit,WebFetch,WebSearch,Read,Glob,Grep,Task",
 ];
@@ -242,7 +244,7 @@ pub async fn run_claude(
     registration.state.set_group(&registration.id, group);
 
     let outcome = tokio::select! {
-        result = drive(&mut child, prompt, &mut on_progress) => Outcome::Finished(result),
+        result = drive(&mut child, group, prompt, &mut on_progress) => Outcome::Finished(result),
         _ = &mut registration.cancelled => Outcome::Cancelled,
         _ = tokio::time::sleep(options.timeout) => Outcome::TimedOut,
     };
@@ -290,7 +292,11 @@ impl Throttle {
     }
 }
 
-async fn drive(child: &mut Child, prompt: &str, on_progress: &mut impl FnMut(&str)) -> Result<String, String> {
+async fn drive(
+    child: &mut Child,
+    group: Option<libc::pid_t>,
+    prompt: &str, on_progress: &mut impl FnMut(&str),
+) -> Result<String, String> {
     let (Some(mut stdin), Some(stdout), Some(mut stderr)) = (child.stdin.take(), child.stdout.take(), child.stderr.take())
     else {
         return Err(format!("{FAILED} Claude pipes are unavailable"));
@@ -325,6 +331,10 @@ async fn drive(child: &mut Child, prompt: &str, on_progress: &mut impl FnMut(&st
         result
     };
     let ((), stderr, result) = tokio::join!(write, read_stderr, read_stdout);
+    // The leader is still unreaped here, so its group id cannot have been reused.
+    if let Some(group) = group {
+        kill_group(group);
+    }
     let status = child.wait().await.map_err(|e| format!("{FAILED} {e}"))?;
     finish(status, &stderr, result)
 }
@@ -366,7 +376,7 @@ pub async fn ask_claude(
     .ok_or_else(|| format!("{MISSING} the claude command was not found"))?;
     let options = RunOptions { program, timeout: TIMEOUT, env: Vec::new() };
     run_claude(&mut registration, &prompt, options, |text| {
-        let _ = app.emit(PROGRESS_EVENT, Progress { request_id: &request_id, text });
+        let _ = app.emit_to("main", PROGRESS_EVENT, Progress { request_id: &request_id, text });
     })
     .await
 }
@@ -518,6 +528,24 @@ mod tests {
             tokio::time::sleep(Duration::from_millis(20)).await;
         }
         assert!(!alive(pid), "process {pid} is still running");
+    }
+
+    #[tokio::test]
+    async fn a_normal_finish_kills_leftover_helpers() {
+        let dir = tempfile::tempdir().unwrap();
+        let pidfile = dir.path().join("pid");
+        let state = ClaudeState::default();
+        let mut opts = options("helper", Duration::from_secs(10));
+        opts.env.push(("FAKE_CLAUDE_PIDFILE".into(), pidfile.to_string_lossy().into()));
+        let result = run_claude(&mut state.register("a"), "x", opts, |_| {}).await;
+        assert_eq!(result, Ok("done".into()));
+        assert_gone(wait_for_pid(&pidfile).await).await;
+    }
+
+    #[test]
+    fn tools_are_disabled_with_an_empty_tools_list() {
+        let at = ARGS.iter().position(|arg| *arg == "--tools").unwrap();
+        assert_eq!(ARGS[at + 1], "");
     }
 
     #[tokio::test]

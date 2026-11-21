@@ -1,5 +1,5 @@
 #!/bin/bash
-expected='-p --safe-mode --output-format stream-json --verbose --no-session-persistence --disallowedTools Bash,Edit,Write,MultiEdit,NotebookEdit,WebFetch,WebSearch,Read,Glob,Grep,Task'
+expected='-p --safe-mode --output-format stream-json --verbose --no-session-persistence --tools  --disallowedTools Bash,Edit,Write,MultiEdit,NotebookEdit,WebFetch,WebSearch,Read,Glob,Grep,Task'
 if [ "$*" != "$expected" ]; then
   echo "unexpected arguments: $*" >&2
   exit 2
@@ -33,6 +33,12 @@ case "${FAKE_CLAUDE_MODE:-success}" in
     ;;
   burst)
     for i in $(seq 1 40); do assistant "x"; done
+    result false "done"
+    ;;
+  helper)
+    sleep 1000 >/dev/null 2>&1 &
+    echo $! > "$FAKE_CLAUDE_PIDFILE"
+    echo "$init"
     result false "done"
     ;;
   sleep)
