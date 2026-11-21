@@ -324,6 +324,26 @@ describe("ClaudePanel result", () => {
     expect(editor.replaceBody).toHaveBeenCalledWith("# Plan\n\nnew line\n");
   });
 
+  test("frontmatter in Claude's answer is kept when the note body started with its own block", async () => {
+    note.body = "---\nnot: properties\n---\n\nold line\n";
+    render();
+    await startQuick();
+    await finish("---\nnot: properties\n---\n\nnew line\n");
+    await act(async () => button("Accept").click());
+    await settle();
+    expect(editor.replaceBody).toHaveBeenCalledWith("---\nnot: properties\n---\n\nnew line\n");
+  });
+
+  test("Accept is disabled and says so when Claude made no changes", async () => {
+    render();
+    await startQuick();
+    await finish(BODY);
+    expect(container.textContent).toContain("Claude made no changes.");
+    expect(button("Accept").disabled).toBe(true);
+    await act(async () => button("Accept").click());
+    expect(mocks.saveSnapshot).not.toHaveBeenCalled();
+  });
+
   test("an empty answer is an error and never applied", async () => {
     render();
     await startQuick();

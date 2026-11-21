@@ -104,6 +104,14 @@ describe("askClaude", () => {
     expect(mocks.unlisten).toHaveBeenCalledOnce();
   });
 
+  test.each([
+    ["CLAUDE_MISSING: x", "Claude Code is not installed. Install it and log in, then try again."],
+    ["CLAUDE_LOGIN: x", 'Claude Code is not logged in. Run "claude" in a terminal and log in.'],
+    ["CLAUDE_TIMEOUT: x", "Claude took longer than 2 minutes. Try a shorter request."],
+  ])("%s has the user facing message", async (raw, text) => {
+    expect((await failWith(raw)).message).toBe(text);
+  });
+
   test("failed_errors_carry_the_detail", async () => {
     expect((await failWith("CLAUDE_FAILED: overloaded")).message).toContain("overloaded");
   });

@@ -4,9 +4,9 @@ import { listen } from "@tauri-apps/api/event";
 export type ClaudeErrorKind = "missing" | "login" | "timeout" | "cancelled" | "failed";
 
 const MESSAGES: Record<Exclude<ClaudeErrorKind, "failed">, string> = {
-  missing: "Claude Code is not installed. Install it, or set its path in settings.",
-  login: "Claude Code is not signed in. Run `claude` in Terminal and log in.",
-  timeout: "Claude took longer than 2 minutes. Try again.",
+  missing: "Claude Code is not installed. Install it and log in, then try again.",
+  login: 'Claude Code is not logged in. Run "claude" in a terminal and log in.',
+  timeout: "Claude took longer than 2 minutes. Try a shorter request.",
   cancelled: "Cancelled.",
 };
 

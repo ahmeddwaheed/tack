@@ -37,6 +37,14 @@ Screenshots are generated with `pnpm screenshots`.
 
 Ask Claude needs [Claude Code](https://claude.com/claude-code) installed and logged in. Nothing is sent until you press a button. Claude runs in safe mode and only returns text; Tack shows the change and you decide.
 
+Tack finds `claude` through your login shell. If Claude Code is installed through nvm, or `claude` is only on your `PATH` in `.zshrc`, Tack may not find it. Set the full path in `settings.json`:
+
+```json
+{ "claude_path": "/Users/you/.nvm/versions/node/v22.0.0/bin/claude" }
+```
+
+`settings.json` is at `~/Library/Application Support/dev.ahmed.tack/settings.json`.
+
 ## Development
 
 ```sh

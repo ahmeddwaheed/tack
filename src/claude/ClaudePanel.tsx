@@ -41,12 +41,6 @@ const PROGRESS_TAIL = 800;
 const STALE = "The note changed while Claude worked. Ask again.";
 const EMPTY = "Claude returned an empty note. Nothing was changed.";
 
-const KIND_MESSAGES = {
-  missing: "Claude Code is not installed. Install it and log in, then try again.",
-  login: 'Claude Code is not logged in. Run "claude" in a terminal and log in.',
-  timeout: "Claude took longer than 2 minutes. Try a shorter request.",
-} as const;
-
 const firstLine = (text: string) => text.split("\n")[0];
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
@@ -54,16 +48,16 @@ const message = (error: unknown) => (error instanceof Error ? error.message : St
 const errorText = (error: unknown): string | null => {
   if (error instanceof ClaudeError) {
     if (error.kind === "cancelled") return null;
-    if (error.kind === "failed") return firstLine(error.message);
-    return KIND_MESSAGES[error.kind];
+    return error.kind === "failed" ? firstLine(error.message) : error.message;
   }
   if (error instanceof EmptyResultError) return EMPTY;
   return firstLine(message(error));
 };
 
-const withoutFrontmatter = (body: string) => {
-  const { frontmatter, body: rest } = splitFrontmatter(body);
-  if (frontmatter === "") return body;
+const withoutFrontmatter = (output: string, bodySent: string) => {
+  if (splitFrontmatter(bodySent).frontmatter !== "") return output;
+  const { frontmatter, body: rest } = splitFrontmatter(output);
+  if (frontmatter === "") return output;
   if (rest.trim() === "") throw new EmptyResultError();
   return rest.replace(/^(?:[ \t]*\r?\n)+/, "");
 };
@@ -118,7 +112,7 @@ export function ClaudePanel({ note, editor, onClose }: ClaudePanelProps) {
     setPhase({ kind: "running", request, progress: "" });
     run.result
       .then((output) => {
-        const after = withoutFrontmatter(extractNoteBody(output, markers));
+        const after = withoutFrontmatter(extractNoteBody(output, markers), bodySent);
         const lines = lineDiff(bodySent, after);
         return {
           after,
@@ -204,7 +198,12 @@ export function ClaudePanel({ note, editor, onClose }: ClaudePanelProps) {
 
   const error = phase.kind === "running" ? null : phase.error;
   const canAccept =
-    phase.kind === "result" && !phase.stale && !phase.applying && note?.state === "ready" && editor !== null;
+    phase.kind === "result" &&
+    phase.changed &&
+    !phase.stale &&
+    !phase.applying &&
+    note?.state === "ready" &&
+    editor !== null;
 
   return (
     <aside className="tack-claude" aria-label="Ask Claude" onKeyDown={onPanelKeyDown}>
