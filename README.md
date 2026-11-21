@@ -25,7 +25,17 @@ Press `⌥Space` in any app to write a quick note. `Esc` saves it to the Inbox.
 ![Conflict](docs/screenshots/conflict.png)
 If a note changed on another device while you typed, you choose which version to keep.
 
+![Ask Claude](docs/screenshots/ask-claude.png)
+Press `⌘J` to ask Claude to change the note. You see every change first, then Accept or Reject.
+
+![History](docs/screenshots/history.png)
+Press `⌘⇧H` to see older versions of the note and restore one.
+
 Screenshots are generated with `pnpm screenshots`.
+
+## Claude
+
+Ask Claude needs [Claude Code](https://claude.com/claude-code) installed and logged in. Nothing is sent until you press a button. Claude runs in safe mode and only returns text; Tack shows the change and you decide.
 
 ## Development
 

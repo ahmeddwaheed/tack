@@ -1,3 +1,4 @@
+import { emit } from "@tauri-apps/api/event";
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import React from "react";
 import ReactDOM from "react-dom/client";
@@ -32,6 +33,7 @@ let settings = {
   grammar_enabled: true,
   always_on_top: false,
   pinned: [MEETING],
+  claude_path: null,
 };
 
 let conflicted = false;
@@ -39,6 +41,45 @@ const theirs = (content: string) =>
   content.replace("- [ ] Maya: write the release notes", "- [x] Maya: write the release notes");
 
 type Args = Record<string, unknown>;
+
+const SUMMARY = [
+  "## Summary",
+  "",
+  "- Staging is stable; one more day of soak time before the next step.",
+  "- The Search revamp beta needs the new index first.",
+  "- No deploys on Friday afternoon.",
+  "- Open tasks: feature flag to 50%, release notes, error budget check.",
+  "",
+].join("\n");
+
+const noteBetweenMarkers = (prompt: string) => {
+  const lines = prompt.split("\n");
+  const start = lines.findIndex((line) => line.startsWith("<<<TACK_NOTE_START"));
+  const end = lines.findIndex((line) => line.startsWith("<<<TACK_NOTE_END"));
+  return lines.slice(start + 1, end).join("\n");
+};
+
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const askClaude = async ({ requestId, prompt }: Args) => {
+  await emit("claude-progress", { requestId, text: "Reading the note…" });
+  await pause(150);
+  await emit("claude-progress", { requestId, text: "Reading the note…\nWriting a summary…" });
+  await pause(150);
+  return `${SUMMARY}${noteBetweenMarkers(prompt as string).replace(/^\n+/, "")}`;
+};
+
+const olderMeeting = (content: string) =>
+  content
+    .replace("Staging is green since Monday. Sam wants one more day of soak time.", "Staging is green since monday, sam wants more soak time")
+    .replace("- [ ] Sam: check the error budget after the restart\n", "");
+
+const MINUTE = 60_000;
+const historyEntries = () => [
+  { id: "3", created_ms: Date.now() - 4 * MINUTE, reason: "Before Ask Claude: Summarize", bytes: 900 },
+  { id: "2", created_ms: Date.now() - 2 * 60 * MINUTE, reason: "Before restore", bytes: 880 },
+  { id: "1", created_ms: Date.now() - 26 * 60 * MINUTE, reason: "Before Ask Claude: Check", bytes: 860 },
+];
 
 const commands: Record<string, (args: Args) => unknown> = {
   vault_status: () => ({ root: VAULT_ROOT, exists: true, container_exists: true }),
@@ -77,6 +118,14 @@ const commands: Record<string, (args: Args) => unknown> = {
   hide_capture: () => null,
   set_capture_hotkey: () => null,
   unavailable_capture_hotkey: () => null,
+  ask_claude: askClaude,
+  cancel_claude: () => null,
+  history_save: ({ reason }) => ({ id: "4", created_ms: Date.now(), reason, bytes: 900 }),
+  history_list: historyEntries,
+  history_read: ({ path, id }) => {
+    const content = files.get(path as string) ?? "";
+    return id === "1" ? olderMeeting(content) : content;
+  },
 };
 
 mockWindows(scene === "capture" ? "capture" : "main");

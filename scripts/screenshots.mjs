@@ -77,6 +77,28 @@ const scenes = [
     },
   },
   {
+    file: "ask-claude.png",
+    scene: "main",
+    run: async (page) => {
+      await waitForNote(page);
+      await page.waitForTimeout(500);
+      await page.keyboard.press("Meta+j");
+      await page.locator(".tack-claude-quick button", { hasText: "Summarize" }).click();
+      await page.locator(".tack-claude-actions button", { hasText: "Accept" }).waitFor();
+    },
+  },
+  {
+    file: "history.png",
+    scene: "main",
+    run: async (page) => {
+      await waitForNote(page);
+      await page.waitForTimeout(500);
+      await page.keyboard.press("Meta+Shift+h");
+      await page.locator(".tack-history-entry", { hasText: "Before Ask Claude: Check" }).click();
+      await page.locator(".tack-history .tack-claude-actions").waitFor();
+    },
+  },
+  {
     file: "grammar.png",
     scene: "grammar",
     run: async (page) => {
