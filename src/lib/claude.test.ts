@@ -69,6 +69,27 @@ describe("askClaude", () => {
     expect(mocks.invoke).not.toHaveBeenCalledWith("ask_claude", expect.anything());
   });
 
+  test("a_cancel_sent_while_running_wins_over_a_late_result", async () => {
+    let release: (value: string) => void = () => {};
+    mocks.invoke.mockImplementation((command) =>
+      command === "ask_claude" ? new Promise((resolve) => (release = resolve)) : Promise.resolve(),
+    );
+    const run = askClaude("p", () => {});
+    await vi.waitFor(() => expect(mocks.invoke).toHaveBeenCalledWith("ask_claude", expect.anything()));
+    await run.cancel();
+    release("rewritten anyway");
+    const error = await run.result.catch((e: unknown) => e);
+    expect((error as ClaudeError).kind).toBe("cancelled");
+  });
+
+  test("cancel_after_the_run_settled_does_not_call_the_backend", async () => {
+    mocks.invoke.mockResolvedValue("done");
+    const run = askClaude("p", () => {});
+    await run.result;
+    await run.cancel();
+    expect(mocks.invoke).not.toHaveBeenCalledWith("cancel_claude", expect.anything());
+  });
+
   test.each([
     ["CLAUDE_MISSING: not found", "missing"],
     ["CLAUDE_LOGIN: Invalid API key", "login"],

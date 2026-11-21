@@ -1,5 +1,5 @@
 #!/bin/bash
-expected='-p --output-format stream-json --verbose --no-session-persistence --disallowedTools Bash,Edit,Write,MultiEdit,NotebookEdit,WebFetch,WebSearch,Read,Glob,Grep,Task'
+expected='-p --safe-mode --output-format stream-json --verbose --no-session-persistence --disallowedTools Bash,Edit,Write,MultiEdit,NotebookEdit,WebFetch,WebSearch,Read,Glob,Grep,Task'
 if [ "$*" != "$expected" ]; then
   echo "unexpected arguments: $*" >&2
   exit 2

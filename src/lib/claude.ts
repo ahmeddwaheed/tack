@@ -43,20 +43,26 @@ export type ClaudeRun = {
 export const askClaude = (prompt: string, onProgress: (text: string) => void): ClaudeRun => {
   const requestId = crypto.randomUUID();
   let cancelled = false;
+  let settled = false;
   const result = (async () => {
     const unlisten = await listen<{ requestId: string; text: string }>("claude-progress", (event) => {
       if (event.payload.requestId === requestId) onProgress(event.payload.text);
     });
     try {
       if (cancelled) throw new ClaudeError("cancelled");
-      return await invoke<string>("ask_claude", { requestId, prompt });
+      const text = await invoke<string>("ask_claude", { requestId, prompt });
+      if (cancelled) throw new ClaudeError("cancelled");
+      return text;
     } catch (e) {
-      throw e instanceof ClaudeError ? e : toClaudeError(e);
+      if (e instanceof ClaudeError) throw e;
+      throw cancelled ? new ClaudeError("cancelled") : toClaudeError(e);
     } finally {
+      settled = true;
       unlisten();
     }
   })();
   const cancel = async () => {
+    if (settled) return;
     cancelled = true;
     await invoke<void>("cancel_claude", { requestId });
   };

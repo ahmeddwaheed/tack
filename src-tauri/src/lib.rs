@@ -102,8 +102,10 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {
-            if let RunEvent::Reopen { .. } = event {
-                show_main_window(app);
+            match event {
+                RunEvent::Reopen { .. } => show_main_window(app),
+                RunEvent::Exit => app.state::<claude::ClaudeState>().kill_all(),
+                _ => {}
             }
         });
 }

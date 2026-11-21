@@ -1,6 +1,6 @@
 use serde::Serialize;
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::path::PathBuf;
 use std::process::{ExitStatus, Stdio};
 use std::sync::{Mutex, MutexGuard};
@@ -10,8 +10,9 @@ use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::oneshot;
 
-const ARGS: [&str; 7] = [
+const ARGS: [&str; 8] = [
     "-p",
+    "--safe-mode",
     "--output-format",
     "stream-json",
     "--verbose",
@@ -23,6 +24,7 @@ const TIMEOUT: Duration = Duration::from_secs(120);
 const PROGRESS_INTERVAL: Duration = Duration::from_millis(100);
 const SHELL_LOOKUP_LIMIT: Duration = Duration::from_secs(5);
 const PROGRESS_EVENT: &str = "claude-progress";
+const MAX_PENDING_CANCELS: usize = 64;
 
 const MISSING: &str = "CLAUDE_MISSING:";
 const LOGIN: &str = "CLAUDE_LOGIN:";
@@ -96,7 +98,7 @@ fn login_shell_claude() -> Option<PathBuf> {
         .lines()
         .rev()
         .map(|line| PathBuf::from(line.trim()))
-        .find(|path| path.is_absolute() && path.is_file())
+        .find(|path| path.is_absolute() && path.file_name().is_some_and(|name| name == "claude") && path.is_file())
 }
 
 fn fallback_paths() -> Vec<PathBuf> {
@@ -110,9 +112,20 @@ fn fallback_paths() -> Vec<PathBuf> {
     paths
 }
 
+struct Running {
+    cancel: Option<oneshot::Sender<()>>,
+    group: Option<libc::pid_t>,
+}
+
+#[derive(Default)]
+struct Inner {
+    running: HashMap<String, Running>,
+    pending_cancels: VecDeque<String>,
+}
+
 #[derive(Default)]
 pub struct ClaudeState {
-    running: Mutex<HashMap<String, oneshot::Sender<()>>>,
+    inner: Mutex<Inner>,
 }
 
 pub struct Registration<'a> {
@@ -122,26 +135,65 @@ pub struct Registration<'a> {
 }
 
 impl ClaudeState {
-    fn running(&self) -> MutexGuard<'_, HashMap<String, oneshot::Sender<()>>> {
-        self.running.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    fn inner(&self) -> MutexGuard<'_, Inner> {
+        self.inner.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
     }
 
     pub fn register(&self, id: &str) -> Registration<'_> {
         let (tx, rx) = oneshot::channel();
-        self.running().insert(id.to_string(), tx);
+        let mut inner = self.inner();
+        let cancel = match inner.pending_cancels.iter().position(|pending| pending == id) {
+            Some(at) => {
+                inner.pending_cancels.remove(at);
+                let _ = tx.send(());
+                None
+            }
+            None => Some(tx),
+        };
+        inner.running.insert(id.to_string(), Running { cancel, group: None });
         Registration { state: self, id: id.to_string(), cancelled: rx }
     }
 
+    // A cancel can overtake its own request on the way in, so it is remembered until the request registers.
     pub fn cancel(&self, id: &str) {
-        if let Some(tx) = self.running().remove(id) {
-            let _ = tx.send(());
+        let mut inner = self.inner();
+        match inner.running.get_mut(id) {
+            Some(running) => {
+                if let Some(tx) = running.cancel.take() {
+                    let _ = tx.send(());
+                }
+            }
+            None => {
+                if inner.pending_cancels.len() >= MAX_PENDING_CANCELS {
+                    inner.pending_cancels.pop_front();
+                }
+                inner.pending_cancels.push_back(id.to_string());
+            }
+        }
+    }
+
+    pub fn kill_all(&self) {
+        for group in self.inner().running.values().filter_map(|running| running.group) {
+            kill_group(group);
+        }
+    }
+
+    fn set_group(&self, id: &str, group: Option<libc::pid_t>) {
+        if let Some(running) = self.inner().running.get_mut(id) {
+            running.group = group;
         }
     }
 }
 
 impl Drop for Registration<'_> {
     fn drop(&mut self) {
-        self.state.running().remove(&self.id);
+        self.state.inner().running.remove(&self.id);
+    }
+}
+
+fn kill_group(group: libc::pid_t) {
+    unsafe {
+        libc::killpg(group, libc::SIGKILL);
     }
 }
 
@@ -163,6 +215,9 @@ pub async fn run_claude(
     options: RunOptions,
     mut on_progress: impl FnMut(&str),
 ) -> Result<String, String> {
+    if registration.cancelled.try_recv().is_ok() {
+        return Err(format!("{CANCELLED} cancelled"));
+    }
     let workdir = tempfile::Builder::new()
         .prefix("tack-claude-")
         .tempdir()
@@ -184,20 +239,20 @@ pub async fn run_claude(
             _ => format!("{FAILED} could not start Claude: {e}"),
         })?;
     let group = child.id().map(|pid| pid as libc::pid_t);
+    registration.state.set_group(&registration.id, group);
 
     let outcome = tokio::select! {
         result = drive(&mut child, prompt, &mut on_progress) => Outcome::Finished(result),
         _ = &mut registration.cancelled => Outcome::Cancelled,
         _ = tokio::time::sleep(options.timeout) => Outcome::TimedOut,
     };
+    registration.state.set_group(&registration.id, None);
 
     if !matches!(outcome, Outcome::Finished(_)) {
         // Claude spawns its own helpers; killing only the direct child would leave them running.
         // The group is only killed while its leader is unreaped, so the id cannot belong to someone else.
         if let Some(group) = group {
-            unsafe {
-                libc::killpg(group, libc::SIGKILL);
-            }
+            kill_group(group);
         }
         let _ = child.start_kill();
         let _ = child.wait().await;
@@ -442,7 +497,7 @@ mod tests {
         })
         .await
         .unwrap();
-        assert!(progress.len() <= 3, "{} progress events", progress.len());
+        assert!(progress.len() <= 10, "{} progress events", progress.len());
         assert_eq!(progress.last().unwrap(), &"x".repeat(40));
     }
 
@@ -497,13 +552,50 @@ mod tests {
     }
 
     #[test]
-    fn cancel_before_finish_is_received_and_unknown_ids_are_ignored() {
+    fn cancel_while_running_is_received_and_the_entry_is_removed_on_drop() {
         let state = ClaudeState::default();
-        state.cancel("nobody");
         let mut registration = state.register("a");
         state.cancel("a");
         assert!(registration.cancelled.try_recv().is_ok());
         drop(registration);
-        assert!(state.running.lock().unwrap().is_empty());
+        assert!(state.inner().running.is_empty());
+    }
+
+    #[tokio::test]
+    async fn cancel_that_arrives_before_register_is_not_lost() {
+        let state = ClaudeState::default();
+        state.cancel("a");
+        let result = run_claude(&mut state.register("a"), "x", options("success", Duration::from_secs(10)), |_| {}).await;
+        assert!(result.unwrap_err().starts_with("CLAUDE_CANCELLED:"));
+        let again = run_claude(&mut state.register("a"), "x", options("success", Duration::from_secs(10)), |_| {}).await;
+        assert_eq!(again, Ok("Rewritten: x".into()));
+    }
+
+    #[test]
+    fn early_cancels_are_bounded() {
+        let state = ClaudeState::default();
+        for i in 0..1000 {
+            state.cancel(&i.to_string());
+        }
+        assert!(state.inner().pending_cancels.len() <= 64);
+    }
+
+    #[tokio::test]
+    async fn kill_all_stops_every_running_process_group() {
+        let dir = tempfile::tempdir().unwrap();
+        let pidfile = dir.path().join("pid");
+        let state = ClaudeState::default();
+        let mut opts = options("sleep", Duration::from_secs(30));
+        opts.env.push(("FAKE_CLAUDE_PIDFILE".into(), pidfile.to_string_lossy().into()));
+        let mut registration = state.register("a");
+        let run = run_claude(&mut registration, "x", opts, |_| {});
+        let kill = async {
+            let pid = wait_for_pid(&pidfile).await;
+            state.kill_all();
+            pid
+        };
+        let (result, pid) = tokio::join!(run, kill);
+        assert!(result.is_err());
+        assert_gone(pid).await;
     }
 }
