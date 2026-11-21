@@ -11,6 +11,7 @@ const stored = {
   grammar_enabled: true,
   always_on_top: false,
   pinned: ["Inbox/a.md"],
+  claude_path: null,
 };
 
 beforeEach(() => {

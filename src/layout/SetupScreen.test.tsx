@@ -21,6 +21,7 @@ const stored = {
   grammar_enabled: true,
   always_on_top: false,
   pinned: [],
+  claude_path: null,
 };
 
 let container: HTMLDivElement;

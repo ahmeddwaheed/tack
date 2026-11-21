@@ -11,6 +11,7 @@ const stored = (alwaysOnTop: boolean) => ({
   grammar_enabled: true,
   always_on_top: alwaysOnTop,
   pinned: [],
+  claude_path: null,
 });
 
 const calls = () => mocks.invoke.mock.calls.map(([command, args]) => [command, args]);

@@ -6,6 +6,7 @@ export type Settings = {
   grammarEnabled: boolean;
   alwaysOnTop: boolean;
   pinned: string[];
+  claudePath: string | null;
 };
 
 type RawSettings = {
@@ -14,6 +15,7 @@ type RawSettings = {
   grammar_enabled: boolean;
   always_on_top: boolean;
   pinned: string[];
+  claude_path: string | null;
 };
 
 export const getSettings = async (): Promise<Settings> => {
@@ -24,6 +26,7 @@ export const getSettings = async (): Promise<Settings> => {
     grammarEnabled: raw.grammar_enabled,
     alwaysOnTop: raw.always_on_top,
     pinned: raw.pinned,
+    claudePath: raw.claude_path ?? null,
   };
 };
 
@@ -35,6 +38,7 @@ export const setSettings = (settings: Settings) =>
       grammar_enabled: settings.grammarEnabled,
       always_on_top: settings.alwaysOnTop,
       pinned: settings.pinned,
+      claude_path: settings.claudePath,
     },
   });
 

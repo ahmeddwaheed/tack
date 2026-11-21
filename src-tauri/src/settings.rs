@@ -11,6 +11,7 @@ pub struct Settings {
     pub grammar_enabled: bool,
     pub always_on_top: bool,
     pub pinned: Vec<String>,
+    pub claude_path: Option<String>,
 }
 
 impl Default for Settings {
@@ -21,6 +22,7 @@ impl Default for Settings {
             grammar_enabled: true,
             always_on_top: false,
             pinned: Vec::new(),
+            claude_path: None,
         }
     }
 }
@@ -59,6 +61,7 @@ mod tests {
         assert!(defaults.grammar_enabled);
         assert!(!defaults.always_on_top);
         assert!(defaults.pinned.is_empty());
+        assert_eq!(defaults.claude_path, None);
 
         let changed = Settings {
             vault_root: Some("/tmp/v".into()),
@@ -66,9 +69,21 @@ mod tests {
             grammar_enabled: false,
             always_on_top: true,
             pinned: vec!["Inbox/a.md".into()],
+            claude_path: Some("/opt/homebrew/bin/claude".into()),
         };
         save(dir.path(), &changed).unwrap();
         assert_eq!(load(dir.path()), changed);
+    }
+
+    #[test]
+    fn settings_without_claude_path_still_load() {
+        let dir = tempfile::tempdir().unwrap();
+        let old = r#"{"vault_root":"/v","capture_hotkey":"Alt+N","grammar_enabled":false,"always_on_top":true,"pinned":["a.md"]}"#;
+        fs::write(dir.path().join(FILE_NAME), old).unwrap();
+        let loaded = load(dir.path());
+        assert_eq!(loaded.vault_root.as_deref(), Some("/v"));
+        assert_eq!(loaded.capture_hotkey, "Alt+N");
+        assert_eq!(loaded.claude_path, None);
     }
 
     #[test]

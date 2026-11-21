@@ -1,4 +1,5 @@
 mod capture;
+mod claude;
 #[cfg(target_os = "macos")]
 mod capture_panel;
 mod history;
@@ -61,6 +62,7 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(watcher::WatcherState::default())
         .manage(capture::CaptureState::default())
+        .manage(claude::ClaudeState::default())
         .setup(|app| {
             #[cfg(target_os = "macos")]
             capture::setup_panel(app.handle());
@@ -77,6 +79,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             set_always_on_top,
             capture::hide_capture,
+            claude::ask_claude,
+            claude::cancel_claude,
             capture::set_capture_hotkey,
             capture::unavailable_capture_hotkey,
             history::history_save,
