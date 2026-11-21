@@ -62,6 +62,14 @@ describe("noteSession", () => {
     expect(session.dirty).toBe(false);
   });
 
+  test("file_content_joins_the_frontmatter_with_the_current_body", async () => {
+    const session = createNoteSession("Inbox/a.md", fakeIO());
+    await session.loaded;
+    expect(session.fileContent()).toBe(ORIGINAL);
+    session.edit("# Title\n\nChanged.\n");
+    expect(session.fileContent()).toBe("---\ntype: note\ntags: [a]\n---\n# Title\n\nChanged.\n");
+  });
+
   test("two_edits_within_600ms_write_once", async () => {
     const io = fakeIO();
     const session = createNoteSession("Inbox/a.md", io);

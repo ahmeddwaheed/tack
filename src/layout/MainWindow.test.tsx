@@ -46,6 +46,7 @@ vi.mock("../editor/Editor", () => ({
           return mocks.dirty;
         },
         flush: async () => undefined,
+        subscribe: () => () => undefined,
         close: async () => {
           mocks.closed.push(path);
         },
@@ -248,5 +249,32 @@ describe("MainWindow capture hotkey", () => {
     expect(mocks.invoke).toHaveBeenCalledWith("set_capture_hotkey", { accel: "Ctrl+Shift+Space" });
     expect(container.querySelector("#tack-hotkey")).toBeNull();
     expect(container.textContent).not.toContain("is not available");
+  });
+});
+
+describe("MainWindow Ask Claude", () => {
+  const panel = () => container.querySelector('aside[aria-label="Ask Claude"]');
+  const cmdJ = () =>
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "j", metaKey: true, bubbles: true }));
+    });
+
+  test("Cmd+J toggles the panel and the palette action opens it", async () => {
+    act(() => root.render(<MainWindow />));
+    await settle();
+    expect(panel()).toBeNull();
+    cmdJ();
+    expect(panel()).not.toBeNull();
+    cmdJ();
+    expect(panel()).toBeNull();
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }));
+    });
+    const option = [...container.querySelectorAll('[role="option"]')].find(
+      (o) => o.textContent === "Ask Claude",
+    ) as HTMLElement;
+    await act(async () => option.click());
+    expect(panel()).not.toBeNull();
   });
 });

@@ -29,6 +29,7 @@ export interface NoteSession {
   readonly revision: number;
   readonly theirs: string | null;
   readonly loaded: Promise<void>;
+  fileContent(): string;
   edit(body: string): void;
   flush(): Promise<void>;
   onDiskChange(content: string): void;
@@ -176,6 +177,8 @@ export function createNoteSession(initialPath: string, io: NoteIO): NoteSession 
       return theirs;
     },
     loaded,
+
+    fileContent: () => joinFrontmatter(frontmatter, body),
 
     edit(next) {
       if (closed || (state !== "ready" && state !== "conflict") || next === body) return;

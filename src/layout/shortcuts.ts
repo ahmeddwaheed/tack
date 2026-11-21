@@ -1,4 +1,4 @@
-export type Shortcut = "new-note" | "toggle-pinned" | "toggle-on-top" | "trash";
+export type Shortcut = "new-note" | "toggle-pinned" | "toggle-on-top" | "trash" | "toggle-claude";
 
 export interface KeyInput {
   key: string;
@@ -18,6 +18,7 @@ export function shortcutFor(input: KeyInput): Shortcut | null {
     return null;
   }
   if (key === "n") return "new-note";
+  if (key === "j") return "toggle-claude";
   if (key === "backspace" && !input.inText) return "trash";
   return null;
 }

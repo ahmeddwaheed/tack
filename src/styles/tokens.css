@@ -48,6 +48,8 @@
   --picker-max-width: 360px;
   --palette-top: 12vh;
   --palette-max-height: 70vh;
+  --claude-panel-width: 340px;
+  --claude-progress-max-height: 160px;
   --viewport-gutter: var(--space-6);
 
   --color-text: #1d1d1f;
@@ -75,6 +77,10 @@
   --color-warning-bg: #fff4d6;
   --color-warning-text: #4a3800;
   --color-backdrop: rgba(0, 0, 0, 0.18);
+  --color-diff-add-bg: #e6f4ea;
+  --color-diff-add-text: #14532d;
+  --color-diff-del-bg: #fdecec;
+  --color-diff-del-text: #7f1d1d;
   --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(0, 0, 0, 0.08);
   --shadow-panel: 0 18px 40px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(0, 0, 0, 0.08);
 }
@@ -106,6 +112,10 @@
     --color-warning-bg: #3d3214;
     --color-warning-text: #f5e3a8;
     --color-backdrop: rgba(0, 0, 0, 0.5);
+    --color-diff-add-bg: #16321f;
+    --color-diff-add-text: #b7ebc6;
+    --color-diff-del-bg: #3a1a1c;
+    --color-diff-del-text: #ffc9c9;
     --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
     --shadow-panel: 0 18px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.08);
   }

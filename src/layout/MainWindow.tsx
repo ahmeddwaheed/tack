@@ -1,6 +1,7 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Editor } from "../editor/Editor";
+import { ClaudePanel } from "../claude/ClaudePanel";
+import { Editor, type EditorApi } from "../editor/Editor";
 import { formatAccelerator, onCaptureSaved, setCaptureHotkey, unavailableCaptureHotkey } from "../lib/capture";
 import { createInboxNote } from "../lib/newNote";
 import { getSettings, toggleSetting, updateSettings } from "../lib/settings";
@@ -68,6 +69,9 @@ export function MainWindow() {
   const [hotkey, setHotkey] = useState("Alt+Space");
   const [hotkeyUnavailable, setHotkeyUnavailable] = useState<string | null>(null);
   const [hotkeyDialogOpen, setHotkeyDialogOpen] = useState(false);
+  const [claudeOpen, setClaudeOpen] = useState(false);
+  const [openSession, setOpenSession] = useState<OpenNote["session"] | null>(null);
+  const [editorApi, setEditorApi] = useState<EditorApi | null>(null);
   const openRef = useRef<OpenNote | null>(null);
   const pathRef = useRef<string | null>(null);
   const busyRef = useRef(false);
@@ -314,9 +318,11 @@ export function MainWindow() {
     toggleAlwaysOnTop().then(setOnTop, fail);
   };
 
-  const shortcutsRef = useRef({ createAndOpen, togglePinnedNote, toggleOnTop, askTrash });
+  const toggleClaude = () => setClaudeOpen((open) => !open);
+
+  const shortcutsRef = useRef({ createAndOpen, togglePinnedNote, toggleOnTop, askTrash, toggleClaude });
   useEffect(() => {
-    shortcutsRef.current = { createAndOpen, togglePinnedNote, toggleOnTop, askTrash };
+    shortcutsRef.current = { createAndOpen, togglePinnedNote, toggleOnTop, askTrash, toggleClaude };
   });
   const dialogOpen = confirm !== null || hotkeyDialogOpen;
 
@@ -338,6 +344,7 @@ export function MainWindow() {
       if (shortcut === "new-note") void handlers.createAndOpen("Untitled");
       else if (shortcut === "toggle-pinned") handlers.togglePinnedNote();
       else if (shortcut === "toggle-on-top") handlers.toggleOnTop();
+      else if (shortcut === "toggle-claude") handlers.toggleClaude();
       else void handlers.askTrash();
     };
     window.addEventListener("keydown", onKeyDown, true);
@@ -349,6 +356,7 @@ export function MainWindow() {
     { id: "toggle-pin", label: "Toggle pin on top", run: toggleOnTop },
     { id: "toggle-pinned", label: "Pin or unpin note", run: togglePinnedNote },
     { id: "trash", label: "Move note to Trash", run: askTrash },
+    { id: "ask-claude", label: "Ask Claude", run: () => setClaudeOpen(true) },
     {
       id: "toggle-grammar",
       label: "Toggle grammar",
@@ -365,6 +373,11 @@ export function MainWindow() {
     setHotkeyUnavailable(null);
   };
 
+  const onOpen = useCallback((note: OpenNote | null) => {
+    openRef.current = note;
+    setOpenSession(note?.session ?? null);
+  }, []);
+
   const searchTitles = useCallback(
     (query: string) => index?.searchTitles(query).map((hit) => hit.title) ?? [],
     [index],
@@ -373,7 +386,11 @@ export function MainWindow() {
   const isPinned = path !== null && pinned.includes(path);
 
   return (
-    <div className="tack-window" data-nav-open={navOpen ? "true" : undefined}>
+    <div
+      className="tack-window"
+      data-nav-open={navOpen ? "true" : undefined}
+      data-claude-open={claudeOpen ? "true" : undefined}
+    >
       <div className="tack-nav">
         <Sidebar sections={sections} selected={section.id} onSelect={setSectionId} />
         <NoteList
@@ -430,6 +447,9 @@ export function MainWindow() {
           <button type="button" aria-pressed={onTop} title="Keep window on top (⌘⇧T)" onClick={toggleOnTop}>
             On top
           </button>
+          <button type="button" aria-pressed={claudeOpen} title="Ask Claude (⌘J)" onClick={toggleClaude}>
+            Ask Claude
+          </button>
         </div>
         {error && (
           <p className="tack-error tack-banner" role="alert">
@@ -455,14 +475,14 @@ export function MainWindow() {
             onPathChange={onRenamed}
             searchTitles={searchTitles}
             grammarEnabled={grammarEnabled}
-            onOpen={(note) => {
-              openRef.current = note;
-            }}
+            onOpen={onOpen}
+            onEditorReady={setEditorApi}
           />
         ) : (
           <p className="tack-empty">No note open. Press ⌘N to start one.</p>
         )}
       </main>
+      {claudeOpen && <ClaudePanel note={openSession} editor={editorApi} onClose={() => setClaudeOpen(false)} />}
       <p className="tack-flash" role="status">
         {flash}
       </p>
