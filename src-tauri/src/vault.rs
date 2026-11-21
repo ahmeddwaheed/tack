@@ -78,6 +78,10 @@ impl Vault {
         }
     }
 
+    pub(crate) fn validate_note_path(&self, rel: &str) -> Result<(), String> {
+        self.resolve_note(rel).map(|_| ())
+    }
+
     fn resolve_note(&self, rel: &str) -> Result<PathBuf, String> {
         let (abs, parts) = self.resolve(rel)?;
         let reserved = matches!(parts.as_slice(), [only] if is_reserved_root_file(only));
@@ -362,12 +366,29 @@ pub fn create_note(
 
 #[tauri::command(async)]
 pub fn rename_note(app: AppHandle, path: String, new_title: String) -> Result<NoteMeta, String> {
-    open_vault(&app)?.rename(&path, &new_title)
+    let vault = open_vault(&app)?;
+    let meta = vault.rename(&path, &new_title)?;
+    follow_history(&app, &vault, &path, &meta.path);
+    Ok(meta)
 }
 
 #[tauri::command(async)]
 pub fn move_note(app: AppHandle, path: String, folder: String) -> Result<NoteMeta, String> {
-    open_vault(&app)?.move_to(&path, &folder)
+    let vault = open_vault(&app)?;
+    let meta = vault.move_to(&path, &folder)?;
+    follow_history(&app, &vault, &path, &meta.path);
+    Ok(meta)
+}
+
+fn follow_history(app: &AppHandle, vault: &Vault, from: &str, to: &str) {
+    if from == to {
+        return;
+    }
+    let moved = settings_dir(app)
+        .and_then(|dir| crate::history::move_history(&dir, vault.root(), from, to));
+    if let Err(err) = moved {
+        eprintln!("history did not follow {from} to {to}: {err}");
+    }
 }
 
 #[tauri::command(async)]

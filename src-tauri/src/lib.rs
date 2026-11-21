@@ -1,6 +1,7 @@
 mod capture;
 #[cfg(target_os = "macos")]
 mod capture_panel;
+mod history;
 mod icloud;
 mod names;
 mod settings;
@@ -78,6 +79,9 @@ pub fn run() {
             capture::hide_capture,
             capture::set_capture_hotkey,
             capture::unavailable_capture_hotkey,
+            history::history_save,
+            history::history_list,
+            history::history_read,
             vault::vault_status,
             vault::vault_init,
             vault::list_notes,
