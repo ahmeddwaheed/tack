@@ -5,6 +5,7 @@ import { noteTitle } from "../layout/noteGuard";
 import { askClaude, ClaudeError, type ClaudeRun } from "../lib/claude";
 import { saveSnapshot } from "../lib/history";
 import { splitFrontmatter } from "../markdown/frontmatter";
+import { DiffView } from "./DiffView";
 import { collapseDiff, lineDiff, type DiffRow } from "./lineDiff";
 import { buildAskPrompt, EmptyResultError, extractNoteBody, noteMarkers, QUICK_ACTIONS } from "./prompt";
 
@@ -253,22 +254,7 @@ export function ClaudePanel({ note, editor, onClose }: ClaudePanelProps) {
       {phase.kind === "result" && (
         <>
           {!phase.changed && <p className="tack-claude-hint">Claude made no changes.</p>}
-          <div className="tack-diff" aria-label="Proposed change">
-            {phase.rows.map((row, i) =>
-              row.kind === "skip" ? (
-                <div key={i} className="tack-diff-skip">
-                  … {row.count} unchanged {row.count === 1 ? "line" : "lines"}
-                </div>
-              ) : (
-                <div key={i} className={`tack-diff-line tack-diff-${row.kind}`}>
-                  <span className="tack-diff-sign" aria-hidden="true">
-                    {row.kind === "add" ? "+" : row.kind === "del" ? "−" : " "}
-                  </span>
-                  {row.text}
-                </div>
-              ),
-            )}
-          </div>
+          <DiffView rows={phase.rows} label="Proposed change" />
           <div className="tack-claude-actions">
             <button type="button" className="tack-primary" disabled={!canAccept} onClick={() => void accept()}>
               Accept

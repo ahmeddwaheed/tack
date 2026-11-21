@@ -278,3 +278,42 @@ describe("MainWindow Ask Claude", () => {
     expect(panel()).not.toBeNull();
   });
 });
+
+describe("MainWindow History", () => {
+  const history = () => container.querySelector('aside[aria-label="Note history"]');
+  const claude = () => container.querySelector('aside[aria-label="Ask Claude"]');
+  const press = (init: KeyboardEventInit) =>
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, metaKey: true, ...init }));
+    });
+
+  test("Cmd+Shift+H toggles the panel and the palette action opens it", async () => {
+    act(() => root.render(<MainWindow />));
+    await settle();
+    expect(history()).toBeNull();
+    press({ key: "H", shiftKey: true });
+    expect(history()).not.toBeNull();
+    press({ key: "H", shiftKey: true });
+    expect(history()).toBeNull();
+
+    press({ key: "k" });
+    const option = [...container.querySelectorAll('[role="option"]')].find(
+      (o) => o.textContent === "Show note history",
+    ) as HTMLElement;
+    await act(async () => option.click());
+    expect(history()).not.toBeNull();
+  });
+
+  test("only one panel is open at a time", async () => {
+    act(() => root.render(<MainWindow />));
+    await settle();
+    press({ key: "j" });
+    expect(claude()).not.toBeNull();
+    press({ key: "H", shiftKey: true });
+    expect(claude()).toBeNull();
+    expect(history()).not.toBeNull();
+    press({ key: "j" });
+    expect(history()).toBeNull();
+    expect(claude()).not.toBeNull();
+  });
+});

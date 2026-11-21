@@ -2,6 +2,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ClaudePanel } from "../claude/ClaudePanel";
 import { Editor, type EditorApi } from "../editor/Editor";
+import { HistoryPanel } from "../history/HistoryPanel";
 import { formatAccelerator, onCaptureSaved, setCaptureHotkey, unavailableCaptureHotkey } from "../lib/capture";
 import { createInboxNote } from "../lib/newNote";
 import { getSettings, toggleSetting, updateSettings } from "../lib/settings";
@@ -69,7 +70,7 @@ export function MainWindow() {
   const [hotkey, setHotkey] = useState("Alt+Space");
   const [hotkeyUnavailable, setHotkeyUnavailable] = useState<string | null>(null);
   const [hotkeyDialogOpen, setHotkeyDialogOpen] = useState(false);
-  const [claudeOpen, setClaudeOpen] = useState(false);
+  const [panel, setPanel] = useState<"claude" | "history" | null>(null);
   const [openSession, setOpenSession] = useState<OpenNote["session"] | null>(null);
   const [editorApi, setEditorApi] = useState<EditorApi | null>(null);
   const openRef = useRef<OpenNote | null>(null);
@@ -318,11 +319,14 @@ export function MainWindow() {
     toggleAlwaysOnTop().then(setOnTop, fail);
   };
 
-  const toggleClaude = () => setClaudeOpen((open) => !open);
+  const togglePanel = (target: "claude" | "history") => setPanel((open) => (open === target ? null : target));
+  const toggleClaude = () => togglePanel("claude");
+  const toggleHistory = () => togglePanel("history");
+  const claudeOpen = panel === "claude";
 
-  const shortcutsRef = useRef({ createAndOpen, togglePinnedNote, toggleOnTop, askTrash, toggleClaude });
+  const shortcutsRef = useRef({ createAndOpen, togglePinnedNote, toggleOnTop, askTrash, toggleClaude, toggleHistory });
   useEffect(() => {
-    shortcutsRef.current = { createAndOpen, togglePinnedNote, toggleOnTop, askTrash, toggleClaude };
+    shortcutsRef.current = { createAndOpen, togglePinnedNote, toggleOnTop, askTrash, toggleClaude, toggleHistory };
   });
   const dialogOpen = confirm !== null || hotkeyDialogOpen;
 
@@ -345,6 +349,7 @@ export function MainWindow() {
       else if (shortcut === "toggle-pinned") handlers.togglePinnedNote();
       else if (shortcut === "toggle-on-top") handlers.toggleOnTop();
       else if (shortcut === "toggle-claude") handlers.toggleClaude();
+      else if (shortcut === "toggle-history") handlers.toggleHistory();
       else void handlers.askTrash();
     };
     window.addEventListener("keydown", onKeyDown, true);
@@ -356,7 +361,8 @@ export function MainWindow() {
     { id: "toggle-pin", label: "Toggle pin on top", run: toggleOnTop },
     { id: "toggle-pinned", label: "Pin or unpin note", run: togglePinnedNote },
     { id: "trash", label: "Move note to Trash", run: askTrash },
-    { id: "ask-claude", label: "Ask Claude", run: () => setClaudeOpen(true) },
+    { id: "ask-claude", label: "Ask Claude", run: () => setPanel("claude") },
+    { id: "show-history", label: "Show note history", run: () => setPanel("history") },
     {
       id: "toggle-grammar",
       label: "Toggle grammar",
@@ -389,7 +395,7 @@ export function MainWindow() {
     <div
       className="tack-window"
       data-nav-open={navOpen ? "true" : undefined}
-      data-claude-open={claudeOpen ? "true" : undefined}
+      data-claude-open={panel ? "true" : undefined}
     >
       <div className="tack-nav">
         <Sidebar sections={sections} selected={section.id} onSelect={setSectionId} />
@@ -482,7 +488,8 @@ export function MainWindow() {
           <p className="tack-empty">No note open. Press ⌘N to start one.</p>
         )}
       </main>
-      {claudeOpen && <ClaudePanel note={openSession} editor={editorApi} onClose={() => setClaudeOpen(false)} />}
+      {claudeOpen && <ClaudePanel note={openSession} editor={editorApi} onClose={() => setPanel(null)} />}
+      {panel === "history" && <HistoryPanel note={openSession} editor={editorApi} onClose={() => setPanel(null)} />}
       <p className="tack-flash" role="status">
         {flash}
       </p>

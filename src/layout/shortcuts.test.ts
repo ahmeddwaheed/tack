@@ -17,6 +17,7 @@ describe("shortcutFor", () => {
     expect(shortcutFor(key({ key: "T", shiftKey: true }))).toBe("toggle-on-top");
     expect(shortcutFor(key({ key: "Backspace" }))).toBe("trash");
     expect(shortcutFor(key({ key: "j" }))).toBe("toggle-claude");
+    expect(shortcutFor(key({ key: "H", shiftKey: true }))).toBe("toggle-history");
   });
 
   test("new note and the toggles also work while typing", () => {
@@ -24,6 +25,7 @@ describe("shortcutFor", () => {
     expect(shortcutFor(key({ key: "p", shiftKey: true, inText: true }))).toBe("toggle-pinned");
     expect(shortcutFor(key({ key: "t", shiftKey: true, inText: true }))).toBe("toggle-on-top");
     expect(shortcutFor(key({ key: "J", inText: true }))).toBe("toggle-claude");
+    expect(shortcutFor(key({ key: "h", shiftKey: true, inText: true }))).toBe("toggle-history");
   });
 
   test("Cmd+Backspace inside text keeps deleting to the line start", () => {

@@ -791,3 +791,34 @@ code {
 .tack-editor .milkdown .ProseMirror ::selection {
   background: var(--color-selected);
 }
+
+.tack-history:focus {
+  outline: none;
+}
+
+.tack-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tack-history-entry {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  width: 100%;
+  text-align: left;
+}
+
+.tack-history-entry[aria-pressed="true"] {
+  border-color: var(--color-accent);
+}
+
+.tack-history-time {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
