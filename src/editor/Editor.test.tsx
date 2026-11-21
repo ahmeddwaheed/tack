@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { Editor } from "./Editor";
+import { Editor, type EditorApi } from "./Editor";
 import type { NoteIO } from "./noteSession";
 
 declare global {
@@ -89,5 +89,28 @@ describe("Editor", () => {
     act(() => root.unmount());
     await settle();
     expect(writes).toEqual([]);
+  });
+
+  test("onEditorReady hands out an api for the open note and null when it goes away", async () => {
+    const { io, writes } = fakeIO();
+    const handed: (EditorApi | null)[] = [];
+    const onEditorReady = (api: EditorApi | null) => handed.push(api);
+    const last = () => handed[handed.length - 1];
+    act(() => root.render(<Editor path="Inbox/Hello.md" io={io} onEditorReady={onEditorReady} />));
+    await settle();
+    const api = last();
+    if (!api) throw new Error("no editor api");
+    expect(api.currentBody()).toBe("# Hello\n\nWorld.\n");
+    act(() => api.replaceBody("Replaced.\n"));
+    await act(() => new Promise<void>((resolve) => setTimeout(resolve, 700)));
+    expect(writes.map((w) => w.content)).toEqual(["---\ntype: note\n---\nReplaced.\n"]);
+    act(() => root.render(<Editor path="Inbox/Other.md" io={io} onEditorReady={onEditorReady} />));
+    await settle();
+    expect(handed.indexOf(null)).toBeGreaterThan(handed.indexOf(api));
+    expect(last()).not.toBeNull();
+    expect(last()).not.toBe(api);
+    act(() => root.unmount());
+    await settle();
+    expect(last()).toBeNull();
   });
 });

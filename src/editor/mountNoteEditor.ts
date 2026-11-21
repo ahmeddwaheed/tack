@@ -1,5 +1,6 @@
 import type { Crepe } from "@milkdown/crepe";
-import { editorViewCtx } from "@milkdown/kit/core";
+import { editorViewCtx, parserCtx } from "@milkdown/kit/core";
+import { closeHistory } from "@milkdown/kit/prose/history";
 import type { Node } from "@milkdown/kit/prose/model";
 import { createTackCrepe } from "../markdown/pipeline";
 import { grammarEditorPlugins, setGrammarEnabled, type GrammarLint } from "../grammar/grammarPlugin";
@@ -9,6 +10,8 @@ import type { NoteSession } from "./noteSession";
 export interface NoteEditor {
   crepe: Crepe;
   sync(): void;
+  replaceBody(markdown: string): void;
+  currentBody(): string;
   setGrammarEnabled(enabled: boolean): void;
   destroy(): Promise<void>;
 }
@@ -26,7 +29,7 @@ export async function mountNoteEditor(
   searchTitles?: TitleSearch,
   grammar?: GrammarOptions,
 ): Promise<NoteEditor> {
-  const lead = LEADING_BLANK_LINES.exec(session.body)?.[0] ?? "";
+  let lead = LEADING_BLANK_LINES.exec(session.body)?.[0] ?? "";
   const revision = session.revision;
   const crepe = createTackCrepe(
     { root, defaultValue: session.body },
@@ -53,6 +56,20 @@ export async function mountNoteEditor(
   return {
     crepe,
     sync,
+    replaceBody(markdown) {
+      if (destroyed || session.state !== "ready" || session.revision !== revision) throw new Error("Note is not ready");
+      const view = crepe.editor.ctx.get(editorViewCtx);
+      const parsed = crepe.editor.ctx.get(parserCtx)(markdown);
+      // Without closing the history group, typing from the last moment would merge into the replacement and one undo would not restore it.
+      view.dispatch(closeHistory(view.state.tr.replaceWith(0, view.state.doc.content.size, parsed.content)));
+      lead = LEADING_BLANK_LINES.exec(markdown)?.[0] ?? "";
+      touched = true;
+      sync();
+    },
+    currentBody() {
+      sync();
+      return touched ? lead + crepe.getMarkdown() : session.body;
+    },
     setGrammarEnabled(enabled) {
       if (!destroyed && grammar) setGrammarEnabled(crepe.editor.ctx.get(editorViewCtx), enabled);
     },

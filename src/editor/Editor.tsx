@@ -9,6 +9,11 @@ import { mountNoteEditor, type NoteEditor } from "./mountNoteEditor";
 import { createNoteSession, type NoteIO, type NoteSession } from "./noteSession";
 import { vaultNoteIO } from "./vaultNoteIO";
 
+export interface EditorApi {
+  replaceBody(md: string): void;
+  currentBody(): string;
+}
+
 interface EditorProps {
   path: string;
   io?: NoteIO;
@@ -17,13 +22,14 @@ interface EditorProps {
   searchTitles?: TitleSearch;
   onOpen?(note: OpenNote | null): void;
   grammarEnabled?: boolean;
+  onEditorReady?: (api: EditorApi | null) => void;
 }
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 const titleOf = (path: string) => (path.split("/").pop() ?? path).replace(/\.md$/i, "");
 
-export function Editor({ path, io = vaultNoteIO, onPathChange, onConflictChange, searchTitles, onOpen, grammarEnabled = true }: EditorProps) {
+export function Editor({ path, io = vaultNoteIO, onPathChange, onConflictChange, searchTitles, onOpen, grammarEnabled = true, onEditorReady }: EditorProps) {
   const [session, setSession] = useState<NoteSession | null>(null);
   const [openedPath, setOpenedPath] = useState(path);
   const [, setTick] = useState(0);
@@ -32,6 +38,7 @@ export function Editor({ path, io = vaultNoteIO, onPathChange, onConflictChange,
   const editorRef = useRef<NoteEditor | null>(null);
   const searchTitlesRef = useRef(searchTitles);
   const onOpenRef = useRef(onOpen);
+  const onEditorReadyRef = useRef(onEditorReady);
   const grammarEnabledRef = useRef(grammarEnabled);
   const bannerRef = useRef<HTMLDivElement>(null);
   const [revealRequest, setRevealRequest] = useState(0);
@@ -39,7 +46,8 @@ export function Editor({ path, io = vaultNoteIO, onPathChange, onConflictChange,
   useEffect(() => {
     searchTitlesRef.current = searchTitles;
     onOpenRef.current = onOpen;
-  }, [searchTitles, onOpen]);
+    onEditorReadyRef.current = onEditorReady;
+  }, [searchTitles, onOpen, onEditorReady]);
 
   useEffect(() => {
     grammarEnabledRef.current = grammarEnabled;
@@ -126,10 +134,15 @@ export function Editor({ path, io = vaultNoteIO, onPathChange, onConflictChange,
       if (cancelled) return dispose(editor);
       mounted = editor;
       editorRef.current = editor;
+      onEditorReadyRef.current?.({
+        replaceBody: (md) => editor.replaceBody(md),
+        currentBody: () => editor.currentBody(),
+      });
     });
     return () => {
       cancelled = true;
       if (mounted === null) return;
+      onEditorReadyRef.current?.(null);
       if (editorRef.current === mounted) editorRef.current = null;
       dispose(mounted);
     };
